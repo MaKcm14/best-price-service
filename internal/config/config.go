@@ -16,6 +16,7 @@ type Settings struct {
 	Socket       string
 	ByPassSocket string
 	Brokers      []string
+	AsyncMode    bool
 }
 
 // configEnv gets ENV var. It returns the error if var is unset or unexisting.
@@ -29,6 +30,22 @@ func configEnv(key string, log *slog.Logger) (string, error) {
 	}
 
 	return env, nil
+}
+
+// AsyncMode configs the AsyncMode ENV defined whether the API
+// must consider the async work mode.
+func AsyncMode(appSet *Settings, log *slog.Logger) error {
+	mode, err := configEnv("ASYNC_MODE", log)
+
+	if err != nil {
+		return err
+	}
+	appSet.AsyncMode = false
+
+	if strings.ToLower(mode) == "yes" {
+		appSet.AsyncMode = true
+	}
+	return nil
 }
 
 // Socket configs the Socket ENV defined the application's socket.

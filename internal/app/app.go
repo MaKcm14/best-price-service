@@ -33,42 +33,44 @@ type Service struct {
 }
 
 func NewService() Service {
-	date := strings.Split(time.Now().String()[:19], " ")
-
-	mainLogFile, err := os.Create(fmt.Sprintf("../../logs/price-service-main-logs_%s___%s.txt",
-		date[0], strings.Join(strings.Split(date[1], ":"), "-")))
-
-	if err != nil {
-		panic(fmt.Sprintf("error of creating the main-log-file: %v", err))
-	}
-
-	log := slog.New(slog.NewTextHandler(mainLogFile, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
+	log, mainLogFile := setLogger()
 	log.Info("main application's configuring begun")
 
-	appSet, err := config.NewSettings(log, config.Socket, config.ByPassSocket, config.Brokers)
-
+	appSet, err := config.NewSettings(log,
+		config.Socket,
+		config.ByPassSocket,
+		config.Brokers,
+		config.AsyncMode,
+	)
 	if err != nil {
 		mainLogFile.Close()
 		panic(err)
 	}
 
+	var producer kafka.Producer
+	if appSet.AsyncMode {
+		producer, err = kafka.NewProducer(log, appSet.Brokers)
+		if err != nil {
+			mainLogFile.Close()
+			panic(err)
+		}
+	}
 	chrome := api.NewChromePull()
 
-	producer, err := kafka.NewProducer(log, appSet.Brokers)
-
-	if err != nil {
-		mainLogFile.Close()
-		panic(err)
-	}
-
 	return Service{
-		appContr: chttp.NewController(echo.New(), log,
+		appContr: chttp.NewController(
+			chttp.ControllerConfig{
+				AsyncMode: appSet.AsyncMode,
+			},
+			echo.New(),
+			log,
 			filter.New(
 				log,
 				map[entities.Market]services.ApiInteractor{
-					entities.Wildberries: wildb.NewWildberriesAPI(chrome.NewContext(), log, 1),
-					entities.MegaMarket:  mmega.NewMegaMarketAPI(chrome.NewContext(), log, appSet.ByPassSocket),
+					entities.Wildberries: wildb.NewWildberriesAPI(
+						chrome.NewContext(), log, 1),
+					entities.MegaMarket: mmega.NewMegaMarketAPI(
+						chrome.NewContext(), log, appSet.ByPassSocket),
 				}, producer)),
 		logger:      log,
 		mainLogFile: mainLogFile,
@@ -93,4 +95,26 @@ func (s Service) Run() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sig
+}
+
+func setLogger() (*slog.Logger, *os.File) {
+	date := strings.Split(time.Now().String()[:19], " ")
+
+	mainLogFile, err := os.Create(
+		fmt.Sprintf("../../logs/price-service-main-logs_%s___%s.txt",
+			date[0],
+			strings.Join(
+				strings.Split(date[1], ":"),
+				"-"),
+		))
+	if err != nil {
+		panic(fmt.Sprintf("error of creating the main-log-file: %v", err))
+	}
+
+	log := slog.New(
+		slog.NewTextHandler(mainLogFile, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}),
+	)
+	return log, mainLogFile
 }

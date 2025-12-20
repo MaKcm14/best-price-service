@@ -28,13 +28,20 @@ type Controller struct {
 	logger *slog.Logger
 	filter filter.Filter
 	valid  validator
+	conf   ControllerConfig
 }
 
-func NewController(contr *echo.Echo, logger *slog.Logger, filter filter.Filter) Controller {
+func NewController(
+	conf ControllerConfig,
+	contr *echo.Echo,
+	logger *slog.Logger,
+	filter filter.Filter,
+) Controller {
 	return Controller{
 		contr:  contr,
 		logger: logger,
 		filter: filter,
+		conf:   conf,
 	}
 }
 
@@ -412,6 +419,12 @@ func (c *Controller) handleMarkets(ctx echo.Context) error {
 //	@router			/products/filter/price/best-price/async [post]
 func (c *Controller) handleBestPriceAsyncRequest(ctx echo.Context) error {
 	const filterType = "async-best-price-filter"
+
+	if !c.conf.AsyncMode {
+		return ctx.JSON(http.StatusServiceUnavailable, ResponseErr{
+			ErrRequestMode.Error(),
+		})
+	}
 
 	requestInfo, err := c.valid.validProductRequest(ctx,
 		c.valid.validQuery,

@@ -6,6 +6,11 @@ import (
 	"github.com/MaKcm14/price-service/pkg/entities"
 )
 
+// ControllerConfig defines the controller's configuration.
+type ControllerConfig struct {
+	AsyncMode bool
+}
+
 // ProductResponse defines the response data.
 type ProductResponse struct {
 	Samples map[string]entities.ProductSample `json:"samples"`

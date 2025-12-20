@@ -224,7 +224,7 @@ You can specified it as you want with the **extra-parameter_with_default_value**
 
 
 #### P.S.
-For more information about the API see the ***swagger-API-docs*** using the endpoint `/swagger`
+For more information about the API see the ***swagger-API-docs*** using the endpoint `/swagger/index.html`
 
 ## How to install
 This service is a part of the **best-price-project**. It must starts with the other services.
@@ -240,11 +240,14 @@ At the root directory you can find .env file that sets the default settings of t
 SOCKET="your_socket_that_will_use_for_starting_this_service"
 BY_PASS_SOCKET="localhost:9090"
 BROKERS="your_kafka_brokers'_sockets_divided_by_space_(bootstrap_list)"
+ASYNC_MODE={"no" for unavailable accepting the async-requests || "yes" otherwise}
 ```
 You can customize it.
 
 #### Note:
-This .env file has default settings **specially for using with the price-service UI**. 
+The `.env_ui` file at the root has the default settings **specially for using with the price-service UI**.
+
+Please *rename* it to the `.env` before using in this mode!
 
 ## Technology stack
 
