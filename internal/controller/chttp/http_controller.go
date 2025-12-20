@@ -7,10 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -31,13 +28,20 @@ type Controller struct {
 	logger *slog.Logger
 	filter filter.Filter
 	valid  validator
+	conf   ControllerConfig
 }
 
-func NewController(contr *echo.Echo, logger *slog.Logger, filter filter.Filter) Controller {
+func NewController(
+	conf ControllerConfig,
+	contr *echo.Echo,
+	logger *slog.Logger,
+	filter filter.Filter,
+) Controller {
 	return Controller{
 		contr:  contr,
 		logger: logger,
 		filter: filter,
+		conf:   conf,
 	}
 }
 
@@ -49,19 +53,15 @@ func (c *Controller) Run(socket string) {
 	c.logger.Info("configuring and starting the http-server begun")
 
 	c.configController()
-	go func() {
-		if err := c.contr.Start(socket); err != nil {
-			serverErr := fmt.Errorf("http-server wasn't started: %v", err)
-			c.logger.Error(serverErr.Error())
-			panic(serverErr)
-		}
-	}()
+	if err := c.contr.Start(socket); err != nil {
+		serverErr := fmt.Errorf("http-server wasn't started or was closed: %v", err)
+		c.logger.Error(serverErr.Error())
+		panic(serverErr)
+	}
+}
 
-	sig := make(chan os.Signal, 3)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
-	<-sig
-
+// GracefulStop defines the logic of service's gracefully shutdown.
+func (c *Controller) GracefulStop() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
@@ -419,6 +419,12 @@ func (c *Controller) handleMarkets(ctx echo.Context) error {
 //	@router			/products/filter/price/best-price/async [post]
 func (c *Controller) handleBestPriceAsyncRequest(ctx echo.Context) error {
 	const filterType = "async-best-price-filter"
+
+	if !c.conf.AsyncMode {
+		return ctx.JSON(http.StatusServiceUnavailable, ResponseErr{
+			ErrRequestMode.Error(),
+		})
+	}
 
 	requestInfo, err := c.valid.validProductRequest(ctx,
 		c.valid.validQuery,

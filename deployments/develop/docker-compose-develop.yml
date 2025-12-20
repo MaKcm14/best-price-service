@@ -1,0 +1,27 @@
+services:
+    price-service-develop:
+        container_name: price-service-develop
+
+        build:
+          context: ../../
+          dockerfile: ./deployments/develop/Dockerfile
+
+        ports:
+          - '8080:8080'
+
+        volumes:
+          - price-service-develop-volume:/logs
+
+    by-pass-service-develop:
+        container_name: by-pass-service-develop
+
+        build: ../../tools/repository/api/by_pass_service/
+
+        network_mode: container:price-service-develop
+
+        depends_on:
+          - price-service-develop
+
+volumes:
+    price-service-develop-volume:
+        name: logs
